@@ -2,7 +2,7 @@
 
 **Real-time clinical monitoring with predictive intelligence, built entirely in-browser**
 
-> *"This system doesn't just tell you who's in danger now — it tells you who WILL be in danger in 20 minutes."*
+> *"This system doesn't just tell you who's in danger — it tells you who WILL be in danger in 20 minutes."*
 
 VitalStream is a real-time patient vital signs monitoring dashboard that combines IoT device simulation, clinical alert scoring, predictive trend detection, and AI-powered clinical decision support — all running inside a BrowserPod sandbox with zero cloud dependency. Patient data never leaves the device.
 
