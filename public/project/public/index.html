@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VitalStream — Live Patient Monitoring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:wght@600;700&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --rose-50:#fff1f2; --rose-100:#ffe4e6; --rose-200:#fecdd3; --rose-300:#fda4af;
+  --rose-400:#fb7185; --rose-500:#f43f5e; --rose-600:#e11d48; --plum-700:#9f1239;
+  --warm-white:#fffbfc; --text-primary:#3b0a1a; --text-secondary:#6b3a4a; --text-muted:#9b7a8a;
+  --glass-bg:rgba(255,255,255,0.6); --glass-border:rgba(253,164,175,0.3);
+  --green:#059669; --yellow:#ca8a04; --orange:#ea580c; --red:#dc2626; --purple:#7c3aed;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--warm-white);color:var(--text-primary);min-height:100vh;
+  background-image:radial-gradient(ellipse 80% 60% at 10% 10%,rgba(254,205,211,0.35) 0%,transparent 60%),
+  radial-gradient(ellipse 50% 40% at 90% 90%,rgba(253,164,175,0.2) 0%,transparent 50%)}
+nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;
+  padding:0.75rem 1.5rem;background:rgba(255,251,252,0.8);backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--glass-border)}
+.nav-brand{display:flex;align-items:center;gap:0.5rem}
+.nav-brand svg{width:28px;height:28px}
+.nav-brand span{font-family:'Playfair Display',serif;font-weight:700;font-size:1.1rem;color:var(--plum-700)}
+.nav-right{display:flex;align-items:center;gap:1rem}
+.status-pill{display:flex;align-items:center;gap:0.35rem;font-size:0.7rem;font-weight:500;color:#065f46;
+  background:#d1fae5;padding:0.2rem 0.6rem;border-radius:20px;border:1px solid #6ee7b7}
+.ai-pill{color:var(--plum-700);background:var(--rose-100);border:1px solid var(--rose-300);font-size:0.65rem;
+  padding:0.2rem 0.6rem;border-radius:20px;font-weight:600;display:flex;align-items:center;gap:0.3rem}
+.status-dot{width:6px;height:6px;border-radius:50%;background:#059669;animation:blink 2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.reading-count{font-size:0.7rem;color:var(--text-muted);font-family:'DM Mono',monospace}
+.container{max-width:1280px;margin:0 auto;padding:1.2rem 1.5rem}
+.section-title{font-family:'Playfair Display',serif;font-size:1.15rem;color:var(--text-primary);margin-bottom:0.8rem;
+  display:flex;align-items:center;gap:0.5rem}
+.section-title svg{width:18px;height:18px;color:var(--rose-500)}
+.alert-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:0.6rem;margin-bottom:1.5rem}
+.alert-stat{background:var(--glass-bg);backdrop-filter:blur(10px);border:1px solid var(--glass-border);
+  border-radius:12px;padding:0.8rem 1rem;text-align:center;transition:transform 0.2s}
+.alert-stat:hover{transform:translateY(-2px)}
+.alert-stat .count{font-size:1.6rem;font-weight:700;line-height:1}
+.alert-stat .label{font-size:0.65rem;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;margin-top:0.25rem;opacity:0.8}
+.patient-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:0.75rem;margin-bottom:2rem}
+.patient-card{background:var(--glass-bg);backdrop-filter:blur(10px);border:1px solid var(--glass-border);
+  border-radius:14px;padding:1rem;position:relative;overflow:hidden;transition:all 0.25s}
+.patient-card:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(253,164,175,0.15)}
+.patient-card .alert-stripe{position:absolute;top:0;left:0;right:0;height:3px}
+.patient-card .card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.6rem}
+.patient-card .patient-name{font-weight:600;font-size:0.85rem;color:var(--text-primary)}
+.patient-card .patient-meta{font-size:0.65rem;color:var(--text-muted);line-height:1.4}
+.alert-badge{font-size:0.6rem;font-weight:600;padding:0.15rem 0.5rem;border-radius:10px;white-space:nowrap}
+.vitals-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0.4rem}
+.vital{text-align:center;padding:0.4rem 0.2rem;border-radius:8px;background:rgba(255,255,255,0.5)}
+.vital .value{font-family:'DM Mono',monospace;font-size:0.85rem;font-weight:600;line-height:1}
+.vital .unit{font-size:0.55rem;color:var(--text-muted);margin-top:0.15rem}
+.card-footer{display:flex;justify-content:space-between;align-items:center;margin-top:0.6rem;padding-top:0.5rem;
+  border-top:1px solid rgba(253,164,175,0.2);font-size:0.6rem;color:var(--text-muted)}
+.card-footer .ward-tag{background:var(--rose-100);color:var(--plum-700);padding:0.1rem 0.45rem;border-radius:6px;
+  font-weight:500;font-size:0.6rem}
+
+/* AI ASSESS BUTTON */
+.btn-ai{display:flex;align-items:center;gap:0.3rem;margin-top:0.5rem;padding:0.4rem 0.8rem;font-family:'DM Sans',sans-serif;
+  font-size:0.7rem;font-weight:600;color:#fff;background:linear-gradient(135deg,var(--rose-500),var(--plum-700));
+  border:none;border-radius:20px;cursor:pointer;transition:all 0.2s;width:100%;justify-content:center}
+.btn-ai:hover{transform:translateY(-1px);box-shadow:0 4px 15px rgba(244,63,94,0.3)}
+.btn-ai:disabled{opacity:0.5;cursor:wait;transform:none}
+.btn-ai svg{width:14px;height:14px}
+
+/* CALL INDICATOR ON CARD */
+.call-sent{position:absolute;top:8px;right:8px;font-size:0.6rem;background:#dbeafe;color:#1e40af;
+  padding:0.15rem 0.4rem;border-radius:8px;border:1px solid #93c5fd;display:flex;align-items:center;gap:0.2rem}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(59,10,26,0.4);backdrop-filter:blur(6px);
+  z-index:200;align-items:center;justify-content:center;padding:1.5rem}
+.modal-overlay.active{display:flex}
+.modal{background:#fff;border-radius:18px;max-width:560px;width:100%;max-height:80vh;overflow-y:auto;
+  box-shadow:0 20px 60px rgba(159,18,57,0.2);border:1px solid var(--glass-border)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;padding:1.2rem 1.5rem;
+  border-bottom:1px solid var(--glass-border);background:linear-gradient(135deg,var(--rose-50),#fff)}
+.modal-header h3{font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--plum-700);
+  display:flex;align-items:center;gap:0.4rem}
+.modal-close{background:none;border:none;font-size:1.4rem;color:var(--text-muted);cursor:pointer;
+  padding:0.2rem 0.5rem;border-radius:8px;transition:background 0.2s}
+.modal-close:hover{background:var(--rose-100)}
+.modal-body{padding:1.2rem 1.5rem}
+.modal-patient-info{background:var(--rose-50);border:1px solid var(--rose-200);border-radius:10px;
+  padding:0.8rem 1rem;margin-bottom:1rem;font-size:0.78rem;line-height:1.6}
+.modal-patient-info strong{color:var(--plum-700)}
+.ai-assessment{font-size:0.82rem;line-height:1.7;color:var(--text-primary)}
+.ai-assessment strong{color:var(--plum-700)}
+.ai-loading{text-align:center;padding:2rem;color:var(--text-muted);font-size:0.85rem}
+.ai-loading .spinner{width:28px;height:28px;border:3px solid var(--rose-200);border-top-color:var(--rose-500);
+  border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 0.8rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ai-error{background:#fef2f2;color:#991b1b;padding:0.8rem 1rem;border-radius:8px;font-size:0.8rem;border:1px solid #fca5a5}
+
+/* CALL TOAST */
+.toast-container{position:fixed;top:70px;right:1.5rem;z-index:300;display:flex;flex-direction:column;gap:0.5rem}
+.toast{background:#fff;border:1px solid #93c5fd;border-left:4px solid #2563eb;border-radius:10px;padding:0.8rem 1rem;
+  box-shadow:0 8px 30px rgba(37,99,235,0.15);max-width:340px;animation:slideIn 0.4s ease-out;font-size:0.75rem}
+.toast.critical{border-color:#c4b5fd;border-left-color:var(--purple)}
+.toast.high{border-color:#fca5a5;border-left-color:var(--red)}
+.toast-title{font-weight:700;font-size:0.8rem;margin-bottom:0.2rem;display:flex;align-items:center;gap:0.3rem}
+.toast-body{color:var(--text-secondary);line-height:1.4}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+.ward-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.6rem;margin-bottom:2rem}
+.ward-card{background:var(--glass-bg);backdrop-filter:blur(10px);border:1px solid var(--glass-border);
+  border-radius:12px;padding:0.8rem 1rem}
+.ward-card h4{font-size:0.8rem;font-weight:600;margin-bottom:0.3rem}
+.ward-card .ward-stats{display:flex;gap:0.5rem;font-size:0.65rem}
+.ward-card .ward-stats span{display:flex;align-items:center;gap:0.2rem}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.feed{max-height:300px;overflow-y:auto;border:1px solid var(--glass-border);border-radius:12px;background:var(--glass-bg);backdrop-filter:blur(10px)}
+.feed-item{display:flex;align-items:center;gap:0.7rem;padding:0.6rem 1rem;border-bottom:1px solid rgba(253,164,175,0.15);
+  font-size:0.72rem;transition:background 0.2s}
+.feed-item:hover{background:rgba(255,241,242,0.5)}
+.feed-item:last-child{border-bottom:none}
+.feed-item .time{font-family:'DM Mono',monospace;color:var(--text-muted);font-size:0.65rem;min-width:55px}
+.feed-item .dot-indicator{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.feed-item .detail{flex:1;color:var(--text-secondary)}
+.feed-item .detail strong{color:var(--text-primary);font-weight:600}
+.footer{text-align:center;padding:1.5rem;font-size:0.65rem;color:var(--text-muted);margin-top:1rem}
+.footer strong{color:var(--rose-500);font-weight:500}
+@keyframes flashIn{0%{background:rgba(244,63,94,0.1)}100%{background:transparent}}
+.flash{animation:flashIn 1s ease-out}
+.voice-toggle{display:flex;align-items:center;gap:0.3rem;font-size:0.7rem;font-weight:500;
+  padding:0.2rem 0.6rem;border-radius:20px;cursor:pointer;transition:all 0.2s;
+  font-family:'DM Sans',sans-serif;border:1px solid #6ee7b7;background:#d1fae5;color:#065f46}
+.voice-toggle.muted{background:#fef2f2;color:#dc2626;border-color:#fca5a5}
+
+/* TREND ARROWS */
+.trend{font-size:0.65rem;font-weight:700;margin-left:2px}
+.trend.rising{color:#dc2626}
+.trend.falling{color:#2563eb}
+.trend.stable{color:#9ca3af}
+
+/* DANGER PREDICTION BADGE */
+.danger-badge{display:flex;align-items:center;gap:0.3rem;margin-top:0.4rem;padding:0.3rem 0.6rem;
+  background:linear-gradient(135deg,#fef2f2,#fff5f5);border:1px solid #fca5a5;border-radius:8px;
+  font-size:0.6rem;font-weight:600;color:#dc2626;animation:dangerPulse 2s ease-in-out infinite}
+@keyframes dangerPulse{0%,100%{opacity:1}50%{opacity:0.7}}
+
+/* AI CHAT BAR */
+.chat-bar{position:fixed;bottom:0;left:0;right:0;z-index:150;background:rgba(255,251,252,0.92);
+  backdrop-filter:blur(16px);border-top:1px solid var(--glass-border);padding:0.6rem 1.5rem}
+.chat-inner{max-width:1280px;margin:0 auto;display:flex;gap:0.6rem;align-items:center}
+.chat-label{font-family:'Playfair Display',serif;font-size:0.85rem;color:var(--plum-700);white-space:nowrap;
+  display:flex;align-items:center;gap:0.3rem}
+.chat-input{flex:1;padding:0.55rem 1rem;font-family:'DM Sans',sans-serif;font-size:0.82rem;
+  border:1px solid var(--glass-border);border-radius:25px;outline:none;background:#fff;color:var(--text-primary);
+  transition:border-color 0.2s}
+.chat-input:focus{border-color:var(--rose-400)}
+.chat-input::placeholder{color:var(--text-muted)}
+.chat-send{padding:0.5rem 1.2rem;font-family:'DM Sans',sans-serif;font-size:0.78rem;font-weight:600;
+  color:#fff;background:linear-gradient(135deg,var(--rose-500),var(--plum-700));border:none;
+  border-radius:25px;cursor:pointer;transition:all 0.2s;white-space:nowrap}
+.chat-send:hover{transform:translateY(-1px);box-shadow:0 3px 12px rgba(244,63,94,0.3)}
+.chat-send:disabled{opacity:0.5;cursor:wait;transform:none}
+.chat-response{max-width:1280px;margin:0 auto;padding:0.5rem 0;font-size:0.78rem;line-height:1.6;
+  color:var(--text-secondary);display:none}
+.chat-response.visible{display:block}
+.chat-response strong{color:var(--plum-700)}
+.chat-close{position:absolute;top:0.3rem;right:0.5rem;background:none;border:none;font-size:1.1rem;
+  color:var(--text-muted);cursor:pointer;padding:0.2rem 0.4rem;border-radius:6px;transition:all 0.2s}
+.chat-close:hover{background:var(--rose-100);color:var(--rose-500)}
+.chat-response{position:relative}
+
+/* WARD GROUPS */
+.ward-group{margin-bottom:1.5rem}
+.ward-group-header{display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;padding:0.4rem 0.8rem;
+  background:linear-gradient(90deg,var(--rose-50),transparent);border-left:3px solid var(--rose-400);
+  border-radius:0 8px 8px 0}
+.ward-group-header h4{font-family:'Playfair Display',serif;font-size:0.9rem;color:var(--plum-700);font-weight:600}
+.ward-group-header .ward-count{font-size:0.65rem;color:var(--text-muted);font-weight:400;
+  background:var(--rose-100);padding:0.1rem 0.5rem;border-radius:10px}
+
+/* HANDOVER BUTTON */
+.btn-handover{display:inline-flex;align-items:center;gap:0.3rem;padding:0.2rem 0.6rem;font-size:0.7rem;
+  font-weight:500;color:#065f46;background:#d1fae5;border:1px solid #6ee7b7;border-radius:20px;
+  cursor:pointer;transition:all 0.2s;font-family:'DM Sans',sans-serif}
+.btn-handover:hover{background:#a7f3d0;transform:translateY(-1px)}
+
+/* HANDOVER MODAL */
+.handover-overlay{display:none;position:fixed;inset:0;background:rgba(10,30,20,0.5);backdrop-filter:blur(6px);
+  z-index:250;align-items:center;justify-content:center;padding:1.5rem}
+.handover-overlay.active{display:flex}
+.handover-modal{background:#fff;border-radius:18px;max-width:720px;width:100%;max-height:85vh;overflow-y:auto;
+  box-shadow:0 20px 60px rgba(5,150,105,0.2);border:1px solid rgba(110,231,183,0.3)}
+.handover-header{display:flex;justify-content:space-between;align-items:center;padding:1.2rem 1.5rem;
+  border-bottom:1px solid rgba(110,231,183,0.2);background:linear-gradient(135deg,#ecfdf5,#fff)}
+.handover-header h3{font-family:'Playfair Display',serif;font-size:1.1rem;color:#065f46;
+  display:flex;align-items:center;gap:0.4rem}
+.handover-body{padding:1.5rem}
+.handover-meta{background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:0.7rem 1rem;
+  margin-bottom:1rem;font-size:0.75rem;color:#065f46;display:flex;align-items:center;gap:0.5rem}
+.handover-content{font-size:0.82rem;line-height:1.8;color:var(--text-primary)}
+.handover-content strong{color:#065f46}
+.handover-loading{text-align:center;padding:2.5rem;color:#059669}
+.handover-loading .spinner{width:32px;height:32px;border:3px solid #d1fae5;border-top-color:#059669;
+  border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 1rem}
+
+/* TRIAGE BUTTON */
+.btn-triage{display:inline-flex;align-items:center;gap:0.4rem;padding:0.4rem 1rem;font-family:'DM Sans',sans-serif;
+  font-size:0.75rem;font-weight:600;color:#fff;background:linear-gradient(135deg,#7c3aed,#4c1d95);
+  border:none;border-radius:20px;cursor:pointer;transition:all 0.25s;margin-left:auto;
+  box-shadow:0 2px 10px rgba(124,58,237,0.3)}
+.btn-triage:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(124,58,237,0.4)}
+.btn-triage:disabled{opacity:0.5;cursor:wait;transform:none}
+.btn-triage svg{width:14px;height:14px}
+
+/* TRIAGE MODAL */
+.triage-overlay{display:none;position:fixed;inset:0;background:rgba(30,10,50,0.5);backdrop-filter:blur(6px);
+  z-index:250;align-items:center;justify-content:center;padding:1.5rem}
+.triage-overlay.active{display:flex}
+.triage-modal{background:#fff;border-radius:18px;max-width:680px;width:100%;max-height:85vh;overflow-y:auto;
+  box-shadow:0 20px 60px rgba(76,29,149,0.25);border:1px solid rgba(124,58,237,0.2)}
+.triage-header{display:flex;justify-content:space-between;align-items:center;padding:1.2rem 1.5rem;
+  border-bottom:1px solid rgba(124,58,237,0.15);background:linear-gradient(135deg,#f5f3ff,#fff)}
+.triage-header h3{font-family:'Playfair Display',serif;font-size:1.1rem;color:#4c1d95;
+  display:flex;align-items:center;gap:0.4rem}
+.triage-body{padding:1.5rem}
+.triage-meta{background:#f5f3ff;border:1px solid #c4b5fd;border-radius:10px;padding:0.7rem 1rem;
+  margin-bottom:1rem;font-size:0.75rem;color:#5b21b6;display:flex;align-items:center;gap:0.5rem}
+.triage-content{font-size:0.82rem;line-height:1.8;color:var(--text-primary);white-space:pre-wrap}
+.triage-content strong{color:#4c1d95}
+.triage-loading{text-align:center;padding:2.5rem;color:#7c3aed}
+.triage-loading .spinner{width:32px;height:32px;border:3px solid #e9d5ff;border-top-color:#7c3aed;
+  border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 1rem}
+@media(max-width:768px){.alert-bar{grid-template-columns:repeat(3,1fr)}.vitals-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.alert-bar{grid-template-columns:repeat(2,1fr)}.patient-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <svg viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="8" fill="#fff1f2"/>
+    <path d="M14 7C11.5 7 9 9.5 9 12.5c0 4.5 5 8.5 5 8.5s5-4 5-8.5C19 9.5 16.5 7 14 7z" fill="#f43f5e" opacity="0.85"/>
+    <path d="M11 13.5h2v-2h2v2h2v2h-2v2h-2v-2h-2z" fill="white"/></svg>
+    <span>VitalStream</span>
+  </div>
+  <div class="nav-right">
+    <span class="reading-count" id="readingCount">0 readings</span>
+    <button class="voice-toggle" id="voiceToggle" onclick="toggleVoice()" title="Toggle voice alerts">🔊 Voice</button>
+    <button class="btn-handover" onclick="requestHandover()" title="Generate AI shift handover report">📋 Handover</button>
+    <div class="ai-pill">✦ AI-Powered</div>
+    <div class="status-pill"><div class="status-dot"></div>Live Monitoring</div>
+  </div>
+</nav>
+
+<!-- CALL TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- AI ASSESSMENT MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>✦ AI Clinical Assessment</h3>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-patient-info" id="modalPatientInfo"></div>
+      <div class="ai-assessment" id="aiAssessment"></div>
+    </div>
+  </div>
+</div>
+
+<!-- AI TRIAGE MODAL -->
+<div class="triage-overlay" id="triageOverlay">
+  <div class="triage-modal">
+    <div class="triage-header">
+      <h3>🧠 AI Triage Agent — Who Should I See First?</h3>
+      <button class="modal-close" onclick="closeTriage()">&times;</button>
+    </div>
+    <div class="triage-body">
+      <div class="triage-meta" id="triageMeta"></div>
+      <div class="triage-content" id="triageContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- AI SHIFT HANDOVER MODAL -->
+<div class="handover-overlay" id="handoverOverlay">
+  <div class="handover-modal">
+    <div class="handover-header">
+      <h3>📋 AI Shift Handover Report</h3>
+      <button class="modal-close" onclick="closeHandover()">&times;</button>
+    </div>
+    <div class="handover-body">
+      <div class="handover-meta" id="handoverMeta"></div>
+      <div class="handover-content" id="handoverContent"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="section-title" style="margin-top:0.5rem">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    Alert Overview
+  </div>
+  <div class="alert-bar" id="alertBar">
+    <div class="alert-stat"><div class="count" style="color:var(--green)" id="cNormal">-</div><div class="label">Normal</div></div>
+    <div class="alert-stat"><div class="count" style="color:var(--yellow)" id="cLow">-</div><div class="label">Low</div></div>
+    <div class="alert-stat"><div class="count" style="color:var(--orange)" id="cElevated">-</div><div class="label">Elevated</div></div>
+    <div class="alert-stat"><div class="count" style="color:var(--red)" id="cHigh">-</div><div class="label">High</div></div>
+    <div class="alert-stat"><div class="count" style="color:var(--purple)" id="cCritical">-</div><div class="label">Critical</div></div>
+  </div>
+
+  <div class="section-title" style="display:flex;align-items:center">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+    Patient Monitoring <span style="font-family:'DM Sans';font-size:0.7rem;font-weight:400;color:var(--text-muted);margin-left:0.5rem">click a patient card for AI assessment</span>
+    <button class="btn-triage" id="triageBtn" onclick="requestTriage()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>
+      AI Triage: Who first?
+    </button>
+  </div>
+  <div id="patientGrid"></div>
+
+  <div class="section-title">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    Ward Overview
+  </div>
+  <div class="ward-grid" id="wardGrid"></div>
+
+  <div class="section-title">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Live Reading Feed
+  </div>
+  <div class="feed" id="feed"></div>
+</div>
+
+<!-- AI CHAT BAR -->
+<div class="chat-bar">
+  <div class="chat-response" id="chatResponse"></div>
+  <div class="chat-inner">
+    <span class="chat-label">🤖 Clinical Query</span>
+    <input class="chat-input" id="chatInput" type="text" placeholder="e.g. Which cardiology patients have elevated readings?" onkeydown="if(event.key==='Enter')sendChat()">
+    <button class="chat-send" id="chatSendBtn" onclick="sendChat()">Ask</button>
+  </div>
+</div>
+
+<div class="footer" style="margin-bottom:80px">
+  Built by <strong>Ella Afonso</strong> · MSc Artificial Intelligence · University of Leeds<br>
+  Powered by AI Clinical Intelligence — all patient data processed securely on-device, zero cloud transmission
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let totalReadings = 0;
+
+// ── AI ASSESSMENT MODAL ──
+async function requestAssessment(patientId, patientName, reading) {
+  const overlay = $("modalOverlay");
+  const info = $("modalPatientInfo");
+  const assessment = $("aiAssessment");
+
+  info.innerHTML = `<strong>${reading.patient_name}</strong> · ${reading.patient_gender} · ${reading.patient_blood_type} · DOB: ${reading.patient_dob}<br>
+    Diagnosis: <strong>${reading.diagnosis_code} — ${reading.diagnosis_desc}</strong><br>
+    Ward: ${reading.ward_name} · Bed ${reading.bed_number} · Doctor: ${reading.attending_doctor}<br>
+    Alert: <span style="color:${reading.alert_colour};font-weight:700">${reading.alert_level}</span> · Health Status: ${reading.health_status}`;
+
+  assessment.innerHTML = `<div class="ai-loading"><div class="spinner"></div>Clinical Assistant is analysing patient vitals...</div>`;
+  overlay.classList.add("active");
+
+  try {
+    const res = await fetch("/api/ai/assess", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patient_id: patientId }),
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      // Convert markdown bold to HTML
+      const formatted = data.assessment
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\n- /g, "<br>• ")
+        .replace(/\n(\d)\./g, "<br>$1.")
+        .replace(/\n/g, "<br>");
+      assessment.innerHTML = formatted;
+    } else {
+      assessment.innerHTML = `<div class="ai-error">AI assessment unavailable: ${data.error}<br><br>Make sure your Anthropic API key is set in main.js</div>`;
+    }
+  } catch (err) {
+    assessment.innerHTML = `<div class="ai-error">Connection error: ${err.message}</div>`;
+  }
+}
+
+function closeModal() {
+  $("modalOverlay").classList.remove("active");
+}
+
+// Close modal on overlay click
+$("modalOverlay").addEventListener("click", (e) => {
+  if (e.target === $("modalOverlay")) closeModal();
+});
+
+// ── CALL TOAST NOTIFICATIONS ──
+function showCallToast(reading, callData) {
+  if (!callData) return;
+  const container = $("toastContainer");
+  const toast = document.createElement("div");
+  const isSent = callData.type === "call_sent";
+  toast.className = `toast ${reading.alert_level_id === 5 ? "critical" : reading.alert_level_id === 4 ? "high" : ""}`;
+  toast.innerHTML = `
+    <div class="toast-title">${isSent ? "📞 Phone Call Alert Sent" : "🚨 Clinical Alert Triggered"}</div>
+    <div class="toast-body">
+      <strong>${reading.patient_name}</strong> — ${reading.alert_level} alert<br>
+      ${reading.ward_name} · Bed ${reading.bed_number}<br>
+      HR ${reading.heart_rate_bpm} · BP ${reading.systolic_bp}/${reading.diastolic_bp} · SpO₂ ${reading.spo2_pct}%<br>
+      <em style="font-size:0.65rem;color:var(--text-muted)">${isSent ? "Call placed to on-call nurse" : "Response required within " + (reading.alert_response_min || 30) + " minutes"}</em>
+    </div>`;
+  container.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = "0"; toast.style.transition = "opacity 0.5s"; setTimeout(() => toast.remove(), 500); }, 8000);
+}
+
+// ── DASHBOARD FUNCTIONS ──
+async function updateAlerts() {
+  const res = await fetch("/api/alerts/summary");
+  const d = await res.json();
+  $("cNormal").textContent = d.normal;
+  $("cLow").textContent = d.low;
+  $("cElevated").textContent = d.elevated;
+  $("cHigh").textContent = d.high;
+  $("cCritical").textContent = d.critical;
+}
+
+async function updatePatients() {
+  const res = await fetch("/api/patients/current");
+  const patients = await res.json();
+  const grid = $("patientGrid");
+
+  // Group patients by ward
+  const wardGroups = {};
+  patients.forEach(p => {
+    const key = p.ward_name;
+    if (!wardGroups[key]) wardGroups[key] = { floor: p.ward_floor, patients: [] };
+    wardGroups[key].patients.push(p);
+  });
+
+  // Sort wards: wards with flagged patients first, then alphabetically
+  const sortedWards = Object.entries(wardGroups).sort((a, b) => {
+    const aFlagged = a[1].patients.filter(p => p.alert_level_id >= 3).length;
+    const bFlagged = b[1].patients.filter(p => p.alert_level_id >= 3).length;
+    if (bFlagged !== aFlagged) return bFlagged - aFlagged;
+    return a[0].localeCompare(b[0]);
+  });
+
+  const tArrow = (trend) => {
+    if (!trend) return '';
+    return `<span class="trend ${trend.direction}">${trend.arrow}</span>`;
+  };
+
+  grid.innerHTML = sortedWards.map(([wardName, ward]) => {
+    const flaggedCount = ward.patients.filter(p => p.alert_level_id >= 3).length;
+    const flaggedBadge = flaggedCount > 0 ? `<span style="font-size:0.6rem;color:var(--red);font-weight:600;margin-left:0.3rem">⚠ ${flaggedCount} flagged</span>` : '';
+
+    const cards = ward.patients.map(p => {
+      const t = p.trends || {};
+      const dangerHtml = p.trending_toward_danger
+        ? `<div class="danger-badge">⚠️ ${p.danger_signals[0]}${p.danger_signals.length > 1 ? ` (+${p.danger_signals.length - 1} more)` : ''}</div>`
+        : '';
+      return `
+      <div class="patient-card" onclick='requestAssessment("${p.patient_id}", "${p.patient_name}", ${JSON.stringify(p).replace(/'/g, "&#39;")})' style="cursor:pointer">
+        <div class="alert-stripe" style="background:${p.alert_colour}"></div>
+        <div class="card-header">
+          <div>
+            <div class="patient-name">${p.patient_name}</div>
+            <div class="patient-meta">${p.patient_gender} · ${p.patient_blood_type} · Bed ${p.bed_number}</div>
+            <div class="patient-meta">${p.diagnosis_code} — ${p.diagnosis_desc}</div>
+          </div>
+          <span class="alert-badge" style="background:${p.alert_bg};color:${p.alert_colour};border:1px solid ${p.alert_border}">${p.alert_level}</span>
+        </div>
+        <div class="vitals-grid">
+          <div class="vital"><div class="value">${p.heart_rate_bpm}${tArrow(t.heart_rate)}</div><div class="unit">HR bpm</div></div>
+          <div class="vital"><div class="value">${p.systolic_bp}/${p.diastolic_bp}${tArrow(t.systolic_bp)}</div><div class="unit">BP mmHg</div></div>
+          <div class="vital"><div class="value">${p.temperature_c}°${tArrow(t.temperature)}</div><div class="unit">Temp °C</div></div>
+          <div class="vital"><div class="value">${p.spo2_pct}%${tArrow(t.spo2)}</div><div class="unit">SpO₂</div></div>
+          <div class="vital"><div class="value">${p.respiratory_rate}${tArrow(t.respiratory_rate)}</div><div class="unit">Resp bpm</div></div>
+          <div class="vital"><div class="value">${p.device_battery_pct}%</div><div class="unit">Battery</div></div>
+        </div>${dangerHtml}
+        <div class="card-footer">
+          <span class="ward-tag">Bed ${p.bed_number}</span>
+          <span style="display:flex;align-items:center;gap:0.3rem">
+            <span style="font-size:0.6rem;color:var(--rose-500);font-weight:600">✦ AI</span>
+            ${p.device_manufacturer} ${p.device_model.split(" ")[0]}
+          </span>
+        </div>
+      </div>`;
+    }).join("");
+
+    return `
+    <div class="ward-group" style="grid-column:1/-1">
+      <div class="ward-group-header">
+        <h4>${wardName}</h4>
+        <span class="ward-count">Floor ${ward.floor} · ${ward.patients.length} patients</span>${flaggedBadge}
+      </div>
+      <div class="patient-grid">${cards}</div>
+    </div>`;
+  }).join("");
+}
+
+async function updateWards() {
+  const res = await fetch("/api/wards");
+  const wards = await res.json();
+  $("wardGrid").innerHTML = wards.map(w => `
+    <div class="ward-card">
+      <h4>${w.ward_name} <span style="font-weight:300;font-size:0.7rem;color:var(--text-muted)">· Floor ${w.floor}</span></h4>
+      <div class="ward-stats">
+        <span><span class="dot" style="background:var(--green)"></span> ${w.normal || 0}</span>
+        <span><span class="dot" style="background:var(--orange)"></span> ${w.elevated || 0}</span>
+        <span><span class="dot" style="background:var(--red)"></span> ${w.critical || 0}</span>
+        <span style="color:var(--text-muted)">${w.patients}/${w.capacity} beds</span>
+      </div>
+    </div>`).join("");
+}
+
+function addToFeed(r) {
+  const feed = $("feed");
+  const time = new Date(r.reading_timestamp).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const item = document.createElement("div");
+  item.className = "feed-item flash";
+  item.innerHTML = `
+    <span class="time">${time}</span>
+    <span class="dot-indicator" style="background:${r.alert_colour}"></span>
+    <span class="detail"><strong>${r.patient_name}</strong> · HR ${r.heart_rate_bpm} · BP ${r.systolic_bp}/${r.diastolic_bp} · SpO₂ ${r.spo2_pct}% · ${r.alert_level}${r.alert_level_id >= 3 ? " 📞" : ""}</span>`;
+  feed.prepend(item);
+  if (feed.children.length > 50) feed.removeChild(feed.lastChild);
+}
+
+// ── Voice Alerts (Web Speech API) ──
+let voiceEnabled = true;
+let voiceUnlocked = false;
+const voiceCooldowns = {};
+
+function toggleVoice() {
+  voiceEnabled = !voiceEnabled;
+  const btn = document.getElementById("voiceToggle");
+  btn.textContent = voiceEnabled ? "🔊 Voice" : "🔇 Muted";
+  btn.classList.toggle("muted", !voiceEnabled);
+  // Unlock speech synthesis on first user interaction (required in iframes)
+  if (voiceEnabled && !voiceUnlocked && window.speechSynthesis) {
+    try {
+      const unlock = new SpeechSynthesisUtterance("");
+      unlock.volume = 0;
+      speechSynthesis.speak(unlock);
+      voiceUnlocked = true;
+      console.log("Voice alerts unlocked");
+    } catch (e) { console.log("Voice unlock failed:", e.message); }
+  }
+}
+
+function speakAlert(reading) {
+  if (!voiceEnabled || !window.speechSynthesis) return;
+  if (reading.alert_level_id < 3) return;
+  const last = voiceCooldowns[reading.patient_id];
+  if (last && (Date.now() - last) < 60000) return;
+  voiceCooldowns[reading.patient_id] = Date.now();
+  const severity = reading.alert_level_id === 5 ? "Critical" : (reading.alert_level_id === 4 ? "High" : "Elevated");
+  const msg = `${severity} alert. Patient ${reading.patient_name}. ` +
+    `${reading.ward_name}, bed ${reading.bed_number}. ` +
+    `Heart rate ${reading.heart_rate_bpm}. ` +
+    `Blood pressure ${reading.systolic_bp} over ${reading.diastolic_bp}. ` +
+    `SpO2 ${reading.spo2_pct} percent. ` +
+    `Immediate response required.`;
+  try {
+    const utterance = new SpeechSynthesisUtterance(msg);
+    utterance.rate = 0.95;
+    utterance.pitch = 0.9;
+    const voices = speechSynthesis.getVoices();
+    const british = voices.find(v => v.lang === "en-GB") || voices.find(v => v.lang.startsWith("en"));
+    if (british) utterance.voice = british;
+    speechSynthesis.speak(utterance);
+  } catch (e) { console.log("Voice alert failed:", e.message); }
+}
+
+// ── AI TRIAGE AGENT ──
+async function requestTriage() {
+  const overlay = $("triageOverlay");
+  const meta = $("triageMeta");
+  const content = $("triageContent");
+  const btn = $("triageBtn");
+
+  btn.disabled = true;
+  btn.textContent = "Analysing patients...";
+  meta.innerHTML = "🧠 Sending all flagged patients to Clinical Assistant for triage analysis...";
+  content.innerHTML = `<div class="triage-loading"><div class="spinner"></div>Clinical Assistant is analysing all flagged patients simultaneously...<br>This may take a few seconds.</div>`;
+  overlay.classList.add("active");
+
+  try {
+    const res = await fetch("/api/ai/triage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      const patientTags = data.patients_triaged.map(p =>
+        `<span style="display:inline-flex;align-items:center;gap:0.2rem;padding:0.15rem 0.5rem;border-radius:8px;font-size:0.65rem;font-weight:600;background:#f5f3ff;border:1px solid #c4b5fd;color:#5b21b6;margin:0.1rem">${p.name} · ${p.alert}</span>`
+      ).join(" ");
+
+      meta.innerHTML = `📋 ${data.patient_count} patients triaged — ${patientTags}`;
+
+      const formatted = data.triage
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\n- /g, "<br>  → ")
+        .replace(/\n(\d+)\./g, "<br><br>$1.")
+        .replace(/\n/g, "<br>");
+      content.innerHTML = `<div style="font-size:0.82rem;line-height:1.8">${formatted}</div>`;
+    } else {
+      content.innerHTML = `<div class="ai-error">${data.error}</div>`;
+      meta.innerHTML = "⚠️ Triage could not be completed";
+    }
+  } catch (err) {
+    content.innerHTML = `<div class="ai-error">Connection error: ${err.message}</div>`;
+    meta.innerHTML = "⚠️ Triage failed";
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg> AI Triage: Who first?`;
+}
+
+function closeTriage() {
+  $("triageOverlay").classList.remove("active");
+}
+
+// Close triage on overlay click
+document.addEventListener("click", (e) => {
+  if (e.target.id === "triageOverlay") closeTriage();
+});
+
+// Close triage on Escape
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { closeModal(); closeTriage(); closeHandover(); }
+});
+
+// ── AI CHAT ──
+async function sendChat() {
+  const input = $("chatInput");
+  const btn = $("chatSendBtn");
+  const responseDiv = $("chatResponse");
+  const question = input.value.trim();
+  if (!question) return;
+
+  btn.disabled = true;
+  btn.textContent = "Thinking...";
+  responseDiv.className = "chat-response visible";
+  responseDiv.innerHTML = `<em style="color:var(--text-muted)">🤖 Analysing patient data...</em>`;
+
+  try {
+    const res = await fetch("/api/ai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      const formatted = data.answer
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\n- /g, "<br>→ ")
+        .replace(/\n/g, "<br>");
+      responseDiv.innerHTML = `<button class="chat-close" onclick="closeChat()">&times;</button><strong style="color:var(--plum-700)">🤖 VitalStream AI:</strong> ${formatted}`;
+    } else {
+      responseDiv.innerHTML = `<span style="color:var(--red)">⚠️ ${data.error}</span>`;
+    }
+  } catch (err) {
+    responseDiv.innerHTML = `<span style="color:var(--red)">⚠️ ${err.message}</span>`;
+  }
+  btn.disabled = false;
+  btn.textContent = "Ask";
+  input.value = "";
+}
+
+function closeChat() {
+  const responseDiv = $("chatResponse");
+  responseDiv.className = "chat-response";
+  responseDiv.innerHTML = "";
+}
+
+// ── AI SHIFT HANDOVER ──
+async function requestHandover() {
+  const overlay = $("handoverOverlay");
+  const meta = $("handoverMeta");
+  const content = $("handoverContent");
+
+  meta.innerHTML = "📋 Generating comprehensive shift handover report...";
+  content.innerHTML = `<div class="handover-loading"><div class="spinner"></div>Clinical Assistant is compiling patient data across all wards...<br>This may take a few seconds.</div>`;
+  overlay.classList.add("active");
+
+  try {
+    const res = await fetch("/api/ai/handover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = await res.json();
+    if (data.success) {
+      meta.innerHTML = `📋 ${data.patient_count} patients · ${data.flagged_count} flagged · ${data.call_count} call alerts this shift`;
+      const formatted = data.report
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\n- /g, "<br>  → ")
+        .replace(/\n(\d+)\./g, "<br><br>$1.")
+        .replace(/\n/g, "<br>");
+      content.innerHTML = formatted;
+    } else {
+      content.innerHTML = `<div class="ai-error">${data.error}</div>`;
+    }
+  } catch (err) {
+    content.innerHTML = `<div class="ai-error">${err.message}</div>`;
+  }
+}
+
+function closeHandover() {
+  $("handoverOverlay").classList.remove("active");
+}
+
+$("handoverOverlay").addEventListener("click", (e) => {
+  if (e.target === $("handoverOverlay")) closeHandover();
+});
+
+async function simulateReading() {
+  const res = await fetch("/api/reading", { method: "POST" });
+  const data = await res.json();
+  if (data.success) {
+    totalReadings++;
+    $("readingCount").textContent = `${totalReadings} readings`;
+    addToFeed(data.reading);
+    speakAlert(data.reading);
+    if (data.call) showCallToast(data.reading, data.call);
+    await updateAlerts();
+    await updatePatients();
+    await updateWards();
+  }
+}
+
+async function init() {
+  const res = await fetch("/api/readings?limit=50");
+  const seeded = await res.json();
+  totalReadings = seeded.length;
+  $("readingCount").textContent = `${totalReadings} readings`;
+  seeded.slice(0, 20).reverse().forEach(r => addToFeed(r));
+  await updateAlerts();
+  await updatePatients();
+  await updateWards();
+  setInterval(simulateReading, 4000);
+}
+
+init();
+</script>
+</body>
+</html>
